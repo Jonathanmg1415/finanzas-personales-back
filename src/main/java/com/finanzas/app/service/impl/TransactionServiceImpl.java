@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 
 @Service
@@ -83,10 +84,13 @@ public class TransactionServiceImpl implements TransactionService {
     @Override
     @Transactional(readOnly = true)
     public BalanceResponse getMonthlyBalance(Long userId, int month, int year) {
+        LocalDate startDate = LocalDate.of(year, month, 1);
+        LocalDate endDate = startDate.plusMonths(1);
+
         BigDecimal totalIncome = transactionRepository
-                .sumByUserIdAndTypeAndPeriod(userId, TransactionType.INCOME, month, year);
+                .sumByUserIdAndTypeAndPeriod(userId, TransactionType.INCOME, startDate, endDate);
         BigDecimal totalExpense = transactionRepository
-                .sumByUserIdAndTypeAndPeriod(userId, TransactionType.EXPENSE, month, year);
+                .sumByUserIdAndTypeAndPeriod(userId, TransactionType.EXPENSE, startDate, endDate);
 
         BigDecimal balance = totalIncome.subtract(totalExpense);
 

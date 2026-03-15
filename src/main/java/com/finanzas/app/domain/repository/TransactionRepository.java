@@ -23,10 +23,10 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
 
     @Query("SELECT COALESCE(SUM(t.amount), 0) FROM Transaction t " +
            "WHERE t.user.id = :userId AND t.type = :type " +
-           "AND MONTH(t.transactionDate) = :month AND YEAR(t.transactionDate) = :year")
+           "AND t.transactionDate >= :startDate AND t.transactionDate < :endDate")
     BigDecimal sumByUserIdAndTypeAndPeriod(
             @Param("userId") Long userId,
             @Param("type") TransactionType type,
-            @Param("month") int month,
-            @Param("year") int year);
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate);
 }

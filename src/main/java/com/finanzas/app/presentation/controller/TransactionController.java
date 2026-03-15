@@ -1,6 +1,6 @@
 package com.finanzas.app.presentation.controller;
 
-import com.finanzas.app.infrastructure.security.JwtUtil;
+import com.finanzas.app.domain.repository.UserRepository;
 import com.finanzas.app.presentation.dto.request.TransactionRequest;
 import com.finanzas.app.presentation.dto.response.BalanceResponse;
 import com.finanzas.app.presentation.dto.response.TransactionResponse;
@@ -12,6 +12,8 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -24,66 +26,64 @@ import java.util.List;
 public class TransactionController {
 
     private final TransactionService transactionService;
-    private final JwtUtil jwtUtil;
+    private final UserRepository userRepository;
 
     @PostMapping
     @Operation(summary = "Registrar una transacción")
     public ResponseEntity<TransactionResponse> create(
-            @RequestHeader("Authorization") String authHeader,
+            @AuthenticationPrincipal UserDetails userDetails,
             @Valid @RequestBody TransactionRequest request) {
-        Long userId = extractUserId(authHeader);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(transactionService.create(userId, request));
+                .body(transactionService.create(resolveUserId(userDetails), request));
     }
 
     @GetMapping
     @Operation(summary = "Listar todas las transacciones del usuario")
     public ResponseEntity<List<TransactionResponse>> findAll(
-            @RequestHeader("Authorization") String authHeader) {
-        Long userId = extractUserId(authHeader);
-        return ResponseEntity.ok(transactionService.findAllByUser(userId));
+            @AuthenticationPrincipal UserDetails userDetails) {
+        return ResponseEntity.ok(transactionService.findAllByUser(resolveUserId(userDetails)));
     }
 
     @GetMapping("/{id}")
     @Operation(summary = "Obtener una transacción por ID")
     public ResponseEntity<TransactionResponse> findById(
-            @RequestHeader("Authorization") String authHeader,
+            @AuthenticationPrincipal UserDetails userDetails,
             @PathVariable Long id) {
-        Long userId = extractUserId(authHeader);
-        return ResponseEntity.ok(transactionService.findById(id, userId));
+        return ResponseEntity.ok(transactionService.findById(id, resolveUserId(userDetails)));
     }
 
     @PutMapping("/{id}")
     @Operation(summary = "Actualizar una transacción")
     public ResponseEntity<TransactionResponse> update(
-            @RequestHeader("Authorization") String authHeader,
+            @AuthenticationPrincipal UserDetails userDetails,
             @PathVariable Long id,
             @Valid @RequestBody TransactionRequest request) {
-        Long userId = extractUserId(authHeader);
-        return ResponseEntity.ok(transactionService.update(id, userId, request));
+        return ResponseEntity.ok(transactionService.update(id, resolveUserId(userDetails), request));
     }
 
     @DeleteMapping("/{id}")
     @Operation(summary = "Eliminar una transacción")
     public ResponseEntity<Void> delete(
-            @RequestHeader("Authorization") String authHeader,
+            @AuthenticationPrincipal UserDetails userDetails,
             @PathVariable Long id) {
-        Long userId = extractUserId(authHeader);
-        transactionService.delete(id, userId);
+        transactionService.delete(id, resolveUserId(userDetails));
         return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/balance")
     @Operation(summary = "Obtener balance mensual (ingresos - gastos)")
     public ResponseEntity<BalanceResponse> getMonthlyBalance(
-            @RequestHeader("Authorization") String authHeader,
+            @AuthenticationPrincipal UserDetails userDetails,
             @RequestParam int month,
             @RequestParam int year) {
-        Long userId = extractUserId(authHeader);
-        return ResponseEntity.ok(transactionService.getMonthlyBalance(userId, month, year));
+        return ResponseEntity.ok(
+                transactionService.getMonthlyBalance(resolveUserId(userDetails), month, year));
     }
 
-    private Long extractUserId(String authHeader) {
-        return jwtUtil.extractUserId(authHeader.substring(7));
+    // Obtiene el userId desde el SecurityContext — sin tocar JwtUtil ni infrastructure
+    private Long resolveUserId(UserDetails userDetails) {
+        return userRepository.findByEmail(userDetails.getUsername())
+                .orElseThrow()
+                .getId();
     }
 }

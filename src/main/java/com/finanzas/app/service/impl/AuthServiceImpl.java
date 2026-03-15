@@ -32,13 +32,14 @@ public class AuthServiceImpl {
                 .fullName(request.getFullName())
                 .build();
 
-        userRepository.save(user);
-        String token = jwtUtil.generateToken(user.getEmail(), user.getId());
+        // Fix: guardar primero para obtener el ID generado por la BD, luego generar token
+        var saved = userRepository.save(user);
+        String token = jwtUtil.generateToken(saved.getEmail(), saved.getId());
 
         return AuthResponse.builder()
                 .token(token)
-                .email(user.getEmail())
-                .fullName(user.getFullName())
+                .email(saved.getEmail())
+                .fullName(saved.getFullName())
                 .build();
     }
 

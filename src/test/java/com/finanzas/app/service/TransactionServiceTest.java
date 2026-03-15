@@ -20,19 +20,15 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class TransactionServiceTest {
 
-    @Mock
-    private TransactionRepository transactionRepository;
-
-    @Mock
-    private UserRepository userRepository;
-
-    @InjectMocks
-    private TransactionServiceImpl transactionService;
+    @Mock private TransactionRepository transactionRepository;
+    @Mock private UserRepository userRepository;
+    @InjectMocks private TransactionServiceImpl transactionService;
 
     private User testUser;
     private TransactionRequest testRequest;
@@ -79,9 +75,14 @@ class TransactionServiceTest {
 
     @Test
     void getMonthlyBalance_shouldReturnSuperavit_whenIncomeExceedsExpense() {
-        when(transactionRepository.sumByUserIdAndTypeAndPeriod(1L, TransactionType.INCOME, 3, 2026))
+        LocalDate start = LocalDate.of(2026, 3, 1);
+        LocalDate end = start.plusMonths(1);
+
+        when(transactionRepository.sumByUserIdAndTypeAndPeriod(
+                eq(1L), eq(TransactionType.INCOME), eq(start), eq(end)))
                 .thenReturn(new BigDecimal("5000000"));
-        when(transactionRepository.sumByUserIdAndTypeAndPeriod(1L, TransactionType.EXPENSE, 3, 2026))
+        when(transactionRepository.sumByUserIdAndTypeAndPeriod(
+                eq(1L), eq(TransactionType.EXPENSE), eq(start), eq(end)))
                 .thenReturn(new BigDecimal("3000000"));
 
         var balance = transactionService.getMonthlyBalance(1L, 3, 2026);
@@ -92,9 +93,14 @@ class TransactionServiceTest {
 
     @Test
     void getMonthlyBalance_shouldReturnDeficit_whenExpenseExceedsIncome() {
-        when(transactionRepository.sumByUserIdAndTypeAndPeriod(1L, TransactionType.INCOME, 3, 2026))
+        LocalDate start = LocalDate.of(2026, 3, 1);
+        LocalDate end = start.plusMonths(1);
+
+        when(transactionRepository.sumByUserIdAndTypeAndPeriod(
+                eq(1L), eq(TransactionType.INCOME), eq(start), eq(end)))
                 .thenReturn(new BigDecimal("1000000"));
-        when(transactionRepository.sumByUserIdAndTypeAndPeriod(1L, TransactionType.EXPENSE, 3, 2026))
+        when(transactionRepository.sumByUserIdAndTypeAndPeriod(
+                eq(1L), eq(TransactionType.EXPENSE), eq(start), eq(end)))
                 .thenReturn(new BigDecimal("2500000"));
 
         var balance = transactionService.getMonthlyBalance(1L, 3, 2026);
