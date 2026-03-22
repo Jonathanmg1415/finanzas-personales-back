@@ -2,7 +2,42 @@ spring:
   application:
     name: personal-finance-api
   profiles:
-    active: dev
+    active: h2
+
+---
+spring:
+  config:
+    activate:
+      on-profile: h2
+  datasource:
+    url: jdbc:h2:mem:finanzasdb
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+  h2:
+    console:
+      enabled: true
+
+server:
+  port: 8080
+
+app:
+  jwt:
+    secret: dev-secret-key-cambiar-en-produccion-256bits
+    expiration: 86400000
+
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
 
 ---
 spring:
@@ -29,7 +64,7 @@ server:
 app:
   jwt:
     secret: dev-secret-key-cambiar-en-produccion-256bits
-    expiration: 86400000  # 24 horas en ms
+    expiration: 86400000
 
 springdoc:
   api-docs:

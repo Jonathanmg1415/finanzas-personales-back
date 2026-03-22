@@ -14,14 +14,17 @@ public class TransactionRequest {
     @Size(max = 255)
     private String description;
 
+    // HU-20: el monto debe ser mayor a cero
     @NotNull(message = "El monto es requerido")
-    @DecimalMin(value = "0.01", message = "El monto debe ser mayor a 0")
+    @DecimalMin(value = "0.0", inclusive = false,
+                message = "El monto debe ser mayor a cero")
     private BigDecimal amount;
 
     @NotNull(message = "El tipo es requerido")
     private TransactionType type;
 
-    @NotBlank(message = "La categoría es requerida")
+    // HU-20: la categoría es obligatoria
+    @NotBlank(message = "Seleccionar una categoría es obligatorio")
     private String category;
 
     @NotNull(message = "La fecha es requerida")

@@ -28,7 +28,13 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(BadCredentialsException.class)
     public ResponseEntity<ErrorResponse> handleBadCredentials(BadCredentialsException ex) {
-        return build(HttpStatus.UNAUTHORIZED, "Credenciales incorrectas");
+        return build(HttpStatus.UNAUTHORIZED, "Credenciales inválidas");
+    }
+
+    // HU-17: bloqueo temporal por múltiples intentos fallidos
+    @ExceptionHandler(AccountLockedException.class)
+    public ResponseEntity<ErrorResponse> handleAccountLocked(AccountLockedException ex) {
+        return build(HttpStatus.TOO_MANY_REQUESTS, ex.getMessage());
     }
 
     @ExceptionHandler(SecurityException.class)
