@@ -115,8 +115,8 @@ class AuthServiceTest {
     void login_shouldThrowAccountLocked_whenExceeds3FailedAttempts() {
         var blockedAttempt = LoginAttempt.builder()
                 .email("jonathan@test.com")
-                .failedAttempts(3)
-                .blockedUntil(LocalDateTime.now().plusMinutes(25))
+                .attempts(3)                                        // ← antes: failedAttempts
+                .lockedUntil(LocalDateTime.now().plusMinutes(25))   // ← antes: blockedUntil
                 .build();
 
         when(loginAttemptRepository.findByEmail("jonathan@test.com"))
@@ -131,7 +131,7 @@ class AuthServiceTest {
     void login_shouldBlockAccount_afterThirdFailedAttempt() {
         var attempt = LoginAttempt.builder()
                 .email("jonathan@test.com")
-                .failedAttempts(2)
+                .attempts(2)                                        // ← antes: failedAttempts
                 .build();
 
         when(loginAttemptRepository.findByEmail(any())).thenReturn(Optional.of(attempt));
@@ -141,8 +141,8 @@ class AuthServiceTest {
         assertThatThrownBy(() -> authService.login(loginRequest))
                 .isInstanceOf(BadCredentialsException.class);
 
-        // Verificar que se guardó el bloqueo
+        // Verifica que se guardó el bloqueo con los nuevos nombres de campo
         verify(loginAttemptRepository).save(argThat(a ->
-                a.getBlockedUntil() != null && a.getFailedAttempts() == 3));
+                a.getLockedUntil() != null && a.getAttempts() == 3));  // ← antes: getBlockedUntil, getFailedAttempts
     }
 }

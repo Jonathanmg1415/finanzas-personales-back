@@ -3,6 +3,7 @@ package com.finanzas.app.service;
 import com.finanzas.app.domain.enums.TransactionType;
 import com.finanzas.app.domain.model.Transaction;
 import com.finanzas.app.domain.model.User;
+import com.finanzas.app.domain.repository.BudgetRepository;
 import com.finanzas.app.domain.repository.TransactionRepository;
 import com.finanzas.app.domain.repository.UserRepository;
 import com.finanzas.app.presentation.dto.request.TransactionRequest;
@@ -15,7 +16,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
+import java.time.LocalDateTime;              // ← cambiado de LocalDate a LocalDateTime
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.*;
@@ -28,6 +29,7 @@ class TransactionServiceTest {
 
     @Mock private TransactionRepository transactionRepository;
     @Mock private UserRepository userRepository;
+    @Mock private BudgetRepository budgetRepository;   // ← agregado porque TransactionServiceImpl lo necesita
     @InjectMocks private TransactionServiceImpl transactionService;
 
     private User testUser;
@@ -51,6 +53,8 @@ class TransactionServiceTest {
         var saved = buildTransaction(1L, request);
         when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
         when(transactionRepository.save(any())).thenReturn(saved);
+        when(budgetRepository.findByUserIdAndCategoryAndMonthAndYear(
+                any(), any(), anyInt(), anyInt())).thenReturn(Optional.empty());
 
         var response = transactionService.create(1L, request);
 
@@ -68,6 +72,8 @@ class TransactionServiceTest {
         var saved = buildTransaction(2L, request);
         when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
         when(transactionRepository.save(any())).thenReturn(saved);
+        when(budgetRepository.findByUserIdAndCategoryAndMonthAndYear(
+                any(), any(), anyInt(), anyInt())).thenReturn(Optional.empty());
 
         var response = transactionService.create(1L, request);
 
@@ -76,8 +82,8 @@ class TransactionServiceTest {
 
     @Test
     void getMonthlyBalance_shouldReduceBalance_whenExpenseIsRegistered() {
-        LocalDate start = LocalDate.of(2026, 3, 1);
-        LocalDate end = start.plusMonths(1);
+        LocalDateTime start = LocalDateTime.of(2026, 3, 1, 0, 0);  // ← LocalDateTime
+        LocalDateTime end = start.plusMonths(1);
 
         when(transactionRepository.sumByUserIdAndTypeAndPeriod(
                 eq(1L), eq(TransactionType.INCOME), eq(start), eq(end)))
@@ -88,15 +94,14 @@ class TransactionServiceTest {
 
         var balance = transactionService.getMonthlyBalance(1L, 3, 2026);
 
-        // HU-20: el balance global se reduce en el monto del gasto
         assertThat(balance.getBalance()).isEqualByComparingTo("2000000");
         assertThat(balance.getStatus()).isEqualTo("SUPERAVIT");
     }
 
     @Test
     void getMonthlyBalance_shouldReturnSuperavit_whenIncomeExceedsExpense() {
-        LocalDate start = LocalDate.of(2026, 3, 1);
-        LocalDate end = start.plusMonths(1);
+        LocalDateTime start = LocalDateTime.of(2026, 3, 1, 0, 0);  // ← LocalDateTime
+        LocalDateTime end = start.plusMonths(1);
 
         when(transactionRepository.sumByUserIdAndTypeAndPeriod(
                 eq(1L), eq(TransactionType.INCOME), eq(start), eq(end)))
@@ -112,8 +117,8 @@ class TransactionServiceTest {
 
     @Test
     void getMonthlyBalance_shouldReturnDeficit_whenExpenseExceedsIncome() {
-        LocalDate start = LocalDate.of(2026, 3, 1);
-        LocalDate end = start.plusMonths(1);
+        LocalDateTime start = LocalDateTime.of(2026, 3, 1, 0, 0);  // ← LocalDateTime
+        LocalDateTime end = start.plusMonths(1);
 
         when(transactionRepository.sumByUserIdAndTypeAndPeriod(
                 eq(1L), eq(TransactionType.INCOME), eq(start), eq(end)))
@@ -137,7 +142,7 @@ class TransactionServiceTest {
         req.setAmount(amount);
         req.setType(TransactionType.EXPENSE);
         req.setCategory(category);
-        req.setTransactionDate(LocalDate.now());
+        req.setTransactionDate(LocalDateTime.now());  // ← LocalDateTime
         req.setNotes(notes);
         return req;
     }
