@@ -6,7 +6,7 @@ import lombok.*;
 import java.math.BigDecimal;
 
 @Entity
-@Table(name = "budgets")
+@Table(name = "budget")                              // ← BD: "budget" sin s
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class Budget {
 
@@ -17,14 +17,18 @@ public class Budget {
     @Column(nullable = false)
     private String category;
 
-    @Column(nullable = false, precision = 15, scale = 2)
-    private BigDecimal limitAmount;
+    @Column(name = "limitamount", nullable = false, precision = 15, scale = 2)
+    private BigDecimal limitAmount;                  // ← BD: "limitamount" sin guión bajo
 
     @Column(nullable = false)
     private int month;
 
     @Column(nullable = false)
     private int year;
+
+    @Column(nullable = false, precision = 15, scale = 2)
+    @Builder.Default
+    private BigDecimal spent = BigDecimal.ZERO;      // ← campo nuevo agregado a la BD
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)

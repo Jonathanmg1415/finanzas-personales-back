@@ -2,6 +2,7 @@ package com.finanzas.app.service.impl;
 
 import com.finanzas.app.domain.enums.TransactionType;
 import com.finanzas.app.domain.model.Transaction;
+import com.finanzas.app.domain.repository.BudgetRepository;
 import com.finanzas.app.domain.repository.TransactionRepository;
 import com.finanzas.app.domain.repository.UserRepository;
 import com.finanzas.app.presentation.dto.request.TransactionRequest;
@@ -14,7 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -23,6 +24,7 @@ public class TransactionServiceImpl implements TransactionService {
 
     private final TransactionRepository transactionRepository;
     private final UserRepository userRepository;
+    private final BudgetRepository budgetRepository;
 
     @Override
     @Transactional
@@ -40,7 +42,15 @@ public class TransactionServiceImpl implements TransactionService {
                 .user(user)
                 .build();
 
-        return toResponse(transactionRepository.save(transaction));
+        transactionRepository.save(transaction);
+
+        // Si es un gasto, descuenta del presupuesto de esa categoría y mes
+        if (request.getType() == TransactionType.EXPENSE) {
+            descontarDePresupuesto(userId, request.getCategory(),
+                    request.getTransactionDate(), request.getAmount());
+        }
+
+        return toResponse(transaction);
     }
 
     @Override
@@ -64,6 +74,12 @@ public class TransactionServiceImpl implements TransactionService {
     public TransactionResponse update(Long id, Long userId, TransactionRequest request) {
         var transaction = getTransactionOfUser(id, userId);
 
+        // Guarda valores viejos antes de modificar
+        BigDecimal montoViejo          = transaction.getAmount();
+        String categoriaVieja          = transaction.getCategory();
+        LocalDateTime fechaVieja       = transaction.getTransactionDate();
+        TransactionType tipoViejo      = transaction.getType();
+
         transaction.setDescription(request.getDescription());
         transaction.setAmount(request.getAmount());
         transaction.setType(request.getType());
@@ -71,21 +87,41 @@ public class TransactionServiceImpl implements TransactionService {
         transaction.setTransactionDate(request.getTransactionDate());
         transaction.setNotes(request.getNotes());
 
-        return toResponse(transactionRepository.save(transaction));
+        transactionRepository.save(transaction);
+
+        // Devuelve al presupuesto viejo si era un gasto
+        if (tipoViejo == TransactionType.EXPENSE) {
+            devolverAlPresupuesto(userId, categoriaVieja, fechaVieja, montoViejo);
+        }
+
+        // Descuenta del presupuesto nuevo si ahora es un gasto
+        if (request.getType() == TransactionType.EXPENSE) {
+            descontarDePresupuesto(userId, request.getCategory(),
+                    request.getTransactionDate(), request.getAmount());
+        }
+
+        return toResponse(transaction);
     }
 
     @Override
     @Transactional
     public void delete(Long id, Long userId) {
         var transaction = getTransactionOfUser(id, userId);
+
+        // Devuelve el monto al presupuesto antes de borrar
+        if (transaction.getType() == TransactionType.EXPENSE) {
+            devolverAlPresupuesto(userId, transaction.getCategory(),
+                    transaction.getTransactionDate(), transaction.getAmount());
+        }
+
         transactionRepository.delete(transaction);
     }
 
     @Override
     @Transactional(readOnly = true)
     public BalanceResponse getMonthlyBalance(Long userId, int month, int year) {
-        LocalDate startDate = LocalDate.of(year, month, 1);
-        LocalDate endDate = startDate.plusMonths(1);
+        LocalDateTime startDate = LocalDateTime.of(year, month, 1, 0, 0);   // ← LocalDateTime
+        LocalDateTime endDate   = startDate.plusMonths(1);
 
         BigDecimal totalIncome = transactionRepository
                 .sumByUserIdAndTypeAndPeriod(userId, TransactionType.INCOME, startDate, endDate);
@@ -107,6 +143,35 @@ public class TransactionServiceImpl implements TransactionService {
                 .balance(balance)
                 .status(status)
                 .build();
+    }
+
+    // ─── Helpers privados ────────────────────────────────────────────────────
+
+    private void descontarDePresupuesto(Long userId, String category,
+                                        LocalDateTime fecha, BigDecimal monto) {
+        budgetRepository.findByUserIdAndCategoryAndMonthAndYear(
+                userId, category,
+                fecha.getMonthValue(),                          // ← extrae mes del LocalDateTime
+                fecha.getYear()                                 // ← extrae año del LocalDateTime
+        ).ifPresent(budget -> {
+            budget.setSpent(budget.getSpent().add(monto));
+            budgetRepository.save(budget);
+        });
+    }
+
+    private void devolverAlPresupuesto(Long userId, String category,
+                                       LocalDateTime fecha, BigDecimal monto) {
+        budgetRepository.findByUserIdAndCategoryAndMonthAndYear(
+                userId, category,
+                fecha.getMonthValue(),
+                fecha.getYear()
+        ).ifPresent(budget -> {
+            BigDecimal nuevoSpent = budget.getSpent().subtract(monto);
+            // Nunca deja el spent en negativo
+            budget.setSpent(nuevoSpent.compareTo(BigDecimal.ZERO) < 0
+                    ? BigDecimal.ZERO : nuevoSpent);
+            budgetRepository.save(budget);
+        });
     }
 
     private Transaction getTransactionOfUser(Long id, Long userId) {

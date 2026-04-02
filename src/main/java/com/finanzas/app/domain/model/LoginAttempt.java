@@ -2,7 +2,6 @@ package com.finanzas.app.domain.model;
 
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
 
@@ -15,14 +14,15 @@ public class LoginAttempt {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
+    @Column(nullable = false, unique = true)
     private String email;
 
-    @Column(nullable = false)
-    private int failedAttempts;
+    @Column(name = "attempts", nullable = false)
+    private int attempts;                            // ← BD: "attempts" (antes era failedAttempts)
 
-    private LocalDateTime blockedUntil;
+    @Column(name = "last_attempt")
+    private LocalDateTime lastAttempt;               // ← BD: "last_attempt" nullable (antes era lastAttemptAt)
 
-    @CreationTimestamp
-    private LocalDateTime lastAttemptAt;
+    @Column(name = "locked_until")
+    private LocalDateTime lockedUntil;               // ← BD: "locked_until" nullable (antes era blockedUntil)
 }

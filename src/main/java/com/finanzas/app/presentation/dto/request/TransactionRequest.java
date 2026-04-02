@@ -5,7 +5,7 @@ import jakarta.validation.constraints.*;
 import lombok.Data;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Data
 public class TransactionRequest {
@@ -14,7 +14,6 @@ public class TransactionRequest {
     @Size(max = 255)
     private String description;
 
-    // HU-20: el monto debe ser mayor a cero
     @NotNull(message = "El monto es requerido")
     @DecimalMin(value = "0.0", inclusive = false,
                 message = "El monto debe ser mayor a cero")
@@ -23,12 +22,11 @@ public class TransactionRequest {
     @NotNull(message = "El tipo es requerido")
     private TransactionType type;
 
-    // HU-20: la categoría es obligatoria
     @NotBlank(message = "Seleccionar una categoría es obligatorio")
     private String category;
 
     @NotNull(message = "La fecha es requerida")
-    private LocalDate transactionDate;
+    private LocalDateTime transactionDate;           // ← cambiado de LocalDate a LocalDateTime (BD: timestamp)
 
     private String notes;
 }

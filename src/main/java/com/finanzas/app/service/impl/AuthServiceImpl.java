@@ -23,9 +23,7 @@ import java.time.LocalDateTime;
 @RequiredArgsConstructor
 public class AuthServiceImpl {
 
-    // HU-17: máximo de intentos fallidos antes del bloqueo
-    private static final int MAX_FAILED_ATTEMPTS = 3;
-    // HU-17: duración del bloqueo temporal en minutos
+    private static final int MAX_FAILED_ATTEMPTS  = 3;
     private static final int LOCK_DURATION_MINUTES = 30;
 
     private final UserRepository userRepository;
@@ -39,8 +37,7 @@ public class AuthServiceImpl {
     @Transactional
     public AuthResponse register(RegisterRequest request) {
         if (userRepository.existsByEmail(request.getEmail())) {
-            throw new IllegalArgumentException(
-                    "Ese correo ya tiene una cuenta asociada");
+            throw new IllegalArgumentException("Ese correo ya tiene una cuenta asociada");
         }
 
         var user = User.builder()
@@ -64,7 +61,6 @@ public class AuthServiceImpl {
 
     @Transactional
     public AuthResponse login(LoginRequest request) {
-        // Verificar si la cuenta está bloqueada
         checkIfBlocked(request.getEmail());
 
         try {
@@ -72,12 +68,9 @@ public class AuthServiceImpl {
                     new UsernamePasswordAuthenticationToken(
                             request.getEmail(), request.getPassword()));
 
-            // Login exitoso — limpiar intentos fallidos
             resetFailedAttempts(request.getEmail());
 
-            var user = userRepository.findByEmail(request.getEmail())
-                    .orElseThrow();
-
+            var user = userRepository.findByEmail(request.getEmail()).orElseThrow();
             String token = jwtUtil.generateToken(user.getEmail(), user.getId());
 
             return AuthResponse.builder()
@@ -87,7 +80,6 @@ public class AuthServiceImpl {
                     .build();
 
         } catch (BadCredentialsException ex) {
-            // Registrar intento fallido
             registerFailedAttempt(request.getEmail());
             throw new BadCredentialsException("Credenciales inválidas");
         }
@@ -97,8 +89,8 @@ public class AuthServiceImpl {
 
     private void checkIfBlocked(String email) {
         loginAttemptRepository.findByEmail(email).ifPresent(attempt -> {
-            if (attempt.getBlockedUntil() != null &&
-                    attempt.getBlockedUntil().isAfter(LocalDateTime.now())) {
+            if (attempt.getLockedUntil() != null &&             // ← antes: getBlockedUntil()
+                    attempt.getLockedUntil().isAfter(LocalDateTime.now())) {
                 throw new AccountLockedException(
                         "Bloqueo temporal de 30 minutos por credenciales incorrectas");
             }
@@ -109,14 +101,14 @@ public class AuthServiceImpl {
         var attempt = loginAttemptRepository.findByEmail(email)
                 .orElse(LoginAttempt.builder()
                         .email(email)
-                        .failedAttempts(0)
+                        .attempts(0)                            // ← antes: failedAttempts
                         .build());
 
-        attempt.setFailedAttempts(attempt.getFailedAttempts() + 1);
-        attempt.setLastAttemptAt(LocalDateTime.now());
+        attempt.setAttempts(attempt.getAttempts() + 1);         // ← antes: setFailedAttempts
+        attempt.setLastAttempt(LocalDateTime.now());             // ← antes: setLastAttemptAt
 
-        if (attempt.getFailedAttempts() >= MAX_FAILED_ATTEMPTS) {
-            attempt.setBlockedUntil(
+        if (attempt.getAttempts() >= MAX_FAILED_ATTEMPTS) {     // ← antes: getFailedAttempts
+            attempt.setLockedUntil(                             // ← antes: setBlockedUntil
                     LocalDateTime.now().plusMinutes(LOCK_DURATION_MINUTES));
         }
 
@@ -125,8 +117,8 @@ public class AuthServiceImpl {
 
     private void resetFailedAttempts(String email) {
         loginAttemptRepository.findByEmail(email).ifPresent(attempt -> {
-            attempt.setFailedAttempts(0);
-            attempt.setBlockedUntil(null);
+            attempt.setAttempts(0);                             // ← antes: setFailedAttempts
+            attempt.setLockedUntil(null);                       // ← antes: setBlockedUntil
             loginAttemptRepository.save(attempt);
         });
     }
