@@ -29,14 +29,18 @@ public class SecurityConfig {
     private static final String[] PUBLIC_ENDPOINTS = {
             "/api/v1/auth/**",
             "/swagger-ui/**",
+            "/swagger-ui.html",
+            "/v3/api-docs/**",
             "/api-docs/**",
-            "/actuator/health"
+            "/actuator/health",
+            "/h2-console/**"
     };
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         return http
                 .csrf(AbstractHttpConfigurer::disable)
+                .headers(headers -> headers.frameOptions(frame -> frame.disable()))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
                         .anyRequest().authenticated()

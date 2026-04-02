@@ -5,15 +5,8 @@ services:
     dockerfilePath: ./Dockerfile
     envVars:
       - key: DATABASE_URL
-        fromDatabase:
-          name: finanzas-db
-          property: connectionString
+        value: jdbc:postgresql://aws-1-us-east-1.pooler.supabase.com:5432/postgres?user=postgres.gdvowuyqavfxzbptuntt&password=pnHst76BoU4T8HiM&sslmode=require
       - key: JWT_SECRET
         generateValue: true
       - key: SPRING_PROFILES_ACTIVE
         value: prod
-
-databases:
-  - name: finanzas-db
-    databaseName: finanzas_db
-    user: finanzas_user

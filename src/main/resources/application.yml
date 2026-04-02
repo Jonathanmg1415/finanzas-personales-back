@@ -2,7 +2,7 @@ spring:
   application:
     name: personal-finance-api
   profiles:
-    active: h2
+    active: dev
 
 ---
 spring:
@@ -45,9 +45,7 @@ spring:
     activate:
       on-profile: dev
   datasource:
-    url: jdbc:postgresql://localhost:5432/finanzas_db
-    username: postgres
-    password: postgres
+    url: jdbc:postgresql://aws-1-us-east-1.pooler.supabase.com:5432/postgres?user=postgres.gdvowuyqavfxzbptuntt&password=pnHst76BoU4T8HiM&sslmode=require
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
@@ -82,7 +80,7 @@ spring:
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
-      ddl-auto: validate
+      ddl-auto: update
     show-sql: false
     properties:
       hibernate:
