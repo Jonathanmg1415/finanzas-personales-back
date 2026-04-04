@@ -99,10 +99,10 @@ public class AuthServiceImpl {
 
     private void registerFailedAttempt(String email) {
         var attempt = loginAttemptRepository.findByEmail(email)
-                .orElse(LoginAttempt.builder()
-                        .email(email)
-                        .attempts(0)                            // ← antes: failedAttempts
-                        .build());
+        .orElseGet(() -> LoginAttempt.builder()
+                .email(email)
+                .attempts(0)
+                .build());
 
         attempt.setAttempts(attempt.getAttempts() + 1);         // ← antes: setFailedAttempts
         attempt.setLastAttempt(LocalDateTime.now());             // ← antes: setLastAttemptAt
