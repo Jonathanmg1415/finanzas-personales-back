@@ -15,6 +15,7 @@ import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
@@ -23,16 +24,16 @@ import java.time.LocalDateTime;
 @RequiredArgsConstructor
 public class AuthServiceImpl {
 
-    private static final int MAX_FAILED_ATTEMPTS  = 3;
+    private static final int MAX_FAILED_ATTEMPTS   = 3;
     private static final int LOCK_DURATION_MINUTES = 30;
 
-    private final UserRepository userRepository;
+    private final UserRepository         userRepository;
     private final LoginAttemptRepository loginAttemptRepository;
-    private final PasswordEncoder passwordEncoder;
-    private final JwtUtil jwtUtil;
-    private final AuthenticationManager authenticationManager;
+    private final PasswordEncoder        passwordEncoder;
+    private final JwtUtil                jwtUtil;
+    private final AuthenticationManager  authenticationManager;
 
-    // ─── HU-16: Registro de Usuario ────────────────────────────────────────────
+    // ─── HU-16: Registro de Usuario ───────────────────────────────────────────
 
     @Transactional
     public AuthResponse register(RegisterRequest request) {
@@ -57,9 +58,8 @@ public class AuthServiceImpl {
                 .build();
     }
 
-    // ─── HU-17: Autenticación ──────────────────────────────────────────────────
+    // ─── HU-17: Autenticación ─────────────────────────────────────────────────
 
-    @Transactional
     public AuthResponse login(LoginRequest request) {
         checkIfBlocked(request.getEmail());
 
@@ -89,7 +89,7 @@ public class AuthServiceImpl {
 
     private void checkIfBlocked(String email) {
         loginAttemptRepository.findByEmail(email).ifPresent(attempt -> {
-            if (attempt.getLockedUntil() != null &&             // ← antes: getBlockedUntil()
+            if (attempt.getLockedUntil() != null &&
                     attempt.getLockedUntil().isAfter(LocalDateTime.now())) {
                 throw new AccountLockedException(
                         "Bloqueo temporal de 30 minutos por credenciales incorrectas");
@@ -97,28 +97,30 @@ public class AuthServiceImpl {
         });
     }
 
-    private void registerFailedAttempt(String email) {
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void registerFailedAttempt(String email) {
         var attempt = loginAttemptRepository.findByEmail(email)
-        .orElseGet(() -> LoginAttempt.builder()
-                .email(email)
-                .attempts(0)
-                .build());
+                .orElseGet(() -> LoginAttempt.builder()
+                        .email(email)
+                        .attempts(0)
+                        .build());
 
-        attempt.setAttempts(attempt.getAttempts() + 1);         // ← antes: setFailedAttempts
-        attempt.setLastAttempt(LocalDateTime.now());             // ← antes: setLastAttemptAt
+        attempt.setAttempts(attempt.getAttempts() + 1);
+        attempt.setLastAttempt(LocalDateTime.now());
 
-        if (attempt.getAttempts() >= MAX_FAILED_ATTEMPTS) {     // ← antes: getFailedAttempts
-            attempt.setLockedUntil(                             // ← antes: setBlockedUntil
+        if (attempt.getAttempts() >= MAX_FAILED_ATTEMPTS) {
+            attempt.setLockedUntil(
                     LocalDateTime.now().plusMinutes(LOCK_DURATION_MINUTES));
         }
 
         loginAttemptRepository.save(attempt);
     }
 
-    private void resetFailedAttempts(String email) {
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void resetFailedAttempts(String email) {
         loginAttemptRepository.findByEmail(email).ifPresent(attempt -> {
-            attempt.setAttempts(0);                             // ← antes: setFailedAttempts
-            attempt.setLockedUntil(null);                       // ← antes: setBlockedUntil
+            attempt.setAttempts(0);
+            attempt.setLockedUntil(null);
             loginAttemptRepository.save(attempt);
         });
     }
