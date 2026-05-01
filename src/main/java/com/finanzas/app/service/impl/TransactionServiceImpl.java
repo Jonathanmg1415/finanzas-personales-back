@@ -53,7 +53,7 @@ public class TransactionServiceImpl implements TransactionService {
 
         // Si es un gasto, descuenta del presupuesto de esa categoría y mes
         if (request.getType() == TransactionType.EXPENSE) {
-            descontarDePresupuesto(userId, category.getName(),
+            descontarDePresupuesto(userId, category.getId(),
                     request.getTransactionDate(), request.getAmount());
         }
 
@@ -86,7 +86,7 @@ public class TransactionServiceImpl implements TransactionService {
 
         // Guarda valores viejos antes de modificar
         BigDecimal montoViejo          = transaction.getAmount();
-        String categoriaVieja          = transaction.getCategory().getName();
+        Category categoriaVieja          = transaction.getCategory();
         LocalDateTime fechaVieja       = transaction.getTransactionDate();
         TransactionType tipoViejo      = transaction.getType();
 
@@ -101,12 +101,12 @@ public class TransactionServiceImpl implements TransactionService {
 
         // Devuelve al presupuesto viejo si era un gasto
         if (tipoViejo == TransactionType.EXPENSE) {
-            devolverAlPresupuesto(userId, categoriaVieja, fechaVieja, montoViejo);
+            devolverAlPresupuesto(userId, categoriaVieja.getId(), fechaVieja, montoViejo);
         }
 
         // Descuenta del presupuesto nuevo si ahora es un gasto
         if (request.getType() == TransactionType.EXPENSE) {
-            descontarDePresupuesto(userId, category.getName(),
+            descontarDePresupuesto(userId, category.getId(),
                     request.getTransactionDate(), request.getAmount());
         }
 
@@ -120,7 +120,7 @@ public class TransactionServiceImpl implements TransactionService {
 
         // Devuelve el monto al presupuesto antes de borrar
         if (transaction.getType() == TransactionType.EXPENSE) {
-            devolverAlPresupuesto(userId, transaction.getCategory().getName(),
+            devolverAlPresupuesto(userId, transaction.getCategory().id(),
                     transaction.getTransactionDate(), transaction.getAmount());
         }
 
@@ -159,17 +159,17 @@ public class TransactionServiceImpl implements TransactionService {
     @Transactional(readOnly = true)
     public List<TransactionResponse> filterByTypeAndCategory(Long userId, Long CategoryId, TransactionType type) {
 
-        return transactionRepository.findByUserIdAndCategoryAndType(userId, CategoryId, type)
+        return transactionRepository.findByUserIdAndCategoryIdAndType(userId, CategoryId, type)
                                     .stream()
                                     .map(this::toResponse)
                                     .toList();
     }
     // ─── Helpers privados ────────────────────────────────────────────────────
 
-    private void descontarDePresupuesto(Long userId, String category,
+    private void descontarDePresupuesto(Long userId, Long categoryId,
                                         LocalDateTime fecha, BigDecimal monto) {
-        budgetRepository.findByUserIdAndCategoryAndMonthAndYear(
-                userId, category,
+        budgetRepository.findByUserIdAndCategoryIdAndMonthAndYear(
+                userId, categoryId,
                 fecha.getMonthValue(),                          // ← extrae mes del LocalDateTime
                 fecha.getYear()                                 // ← extrae año del LocalDateTime
         ).ifPresent(budget -> {
@@ -178,10 +178,10 @@ public class TransactionServiceImpl implements TransactionService {
         });
     }
 
-    private void devolverAlPresupuesto(Long userId, String category,
+    private void devolverAlPresupuesto(Long userId, Long categoryId,
                                        LocalDateTime fecha, BigDecimal monto) {
-        budgetRepository.findByUserIdAndCategoryAndMonthAndYear(
-                userId, category,
+        budgetRepository.findByUserIdAndCategoryIdAndMonthAndYear(
+                userId, categoryId,
                 fecha.getMonthValue(),
                 fecha.getYear()
         ).ifPresent(budget -> {
