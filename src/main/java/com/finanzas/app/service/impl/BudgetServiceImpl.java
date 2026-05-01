@@ -86,7 +86,7 @@ public class BudgetServiceImpl implements BudgetService {
     private BudgetResponse toResponse(Budget b, String message) {
         return BudgetResponse.builder()
                 .id(b.getId())
-                .category(b.getCategory().getName())
+                .categoryName(b.getCategory().getName())
                 .limitAmount(b.getLimitAmount())
                 .spent(b.getSpent())
                 .month(b.getMonth())

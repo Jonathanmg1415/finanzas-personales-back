@@ -120,7 +120,7 @@ public class TransactionServiceImpl implements TransactionService {
 
         // Devuelve el monto al presupuesto antes de borrar
         if (transaction.getType() == TransactionType.EXPENSE) {
-            devolverAlPresupuesto(userId, transaction.getCategory().id(),
+            devolverAlPresupuesto(userId, transaction.getCategory().getId(),
                     transaction.getTransactionDate(), transaction.getAmount());
         }
 
