@@ -58,7 +58,7 @@ class TransactionServiceTest {
         when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
         when(categoryRepository.findById(1L)).thenReturn(Optional.of(category));
         when(transactionRepository.save(any())).thenReturn(saved);
-        when(budgetRepository.findByUserIdAndCategoryAndMonthAndYear(
+        when(budgetRepository.findByUserIdAndCategoryIdAndMonthAndYear(
                 any(), any(), anyInt(), anyInt())).thenReturn(Optional.empty());
 
         var response = transactionService.create(1L, request);
@@ -79,7 +79,7 @@ class TransactionServiceTest {
         when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
         when(categoryRepository.findById(1L)).thenReturn(Optional.of(category));
         when(transactionRepository.save(any())).thenReturn(saved);
-        when(budgetRepository.findByUserIdAndCategoryAndMonthAndYear(
+        when(budgetRepository.findByUserIdAndCategoryIdAndMonthAndYear(
                 any(), any(), anyInt(), anyInt())).thenReturn(Optional.empty());
 
         var response = transactionService.create(1L, request);
