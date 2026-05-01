@@ -3,7 +3,9 @@ package com.finanzas.app.service;
 import com.finanzas.app.domain.enums.TransactionType;
 import com.finanzas.app.domain.model.Transaction;
 import com.finanzas.app.domain.model.User;
+import com.finanzas.app.domain.model.Category;
 import com.finanzas.app.domain.repository.BudgetRepository;
+import com.finanzas.app.domain.repository.CategoryRepository;
 import com.finanzas.app.domain.repository.TransactionRepository;
 import com.finanzas.app.domain.repository.UserRepository;
 import com.finanzas.app.presentation.dto.request.TransactionRequest;
@@ -29,7 +31,8 @@ class TransactionServiceTest {
 
     @Mock private TransactionRepository transactionRepository;
     @Mock private UserRepository userRepository;
-    @Mock private BudgetRepository budgetRepository;   // ← agregado porque TransactionServiceImpl lo necesita
+    @Mock private BudgetRepository budgetRepository;
+    @Mock private CategoryRepository categoryRepository;
     @InjectMocks private TransactionServiceImpl transactionService;
 
     private User testUser;
@@ -47,11 +50,13 @@ class TransactionServiceTest {
 
     @Test
     void create_shouldRegisterExpense_whenDataIsValid() {
+        var category = Category.builder().id(1L).name("Alimentación").global(true).build();
         var request = buildExpenseRequest("Almuerzo", new BigDecimal("25000"),
-                "Alimentación", null);
+                1L, null);
 
-        var saved = buildTransaction(1L, request);
+        var saved = buildTransaction(1L, request, category);
         when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
+        when(categoryRepository.findById(1L)).thenReturn(Optional.of(category));
         when(transactionRepository.save(any())).thenReturn(saved);
         when(budgetRepository.findByUserIdAndCategoryAndMonthAndYear(
                 any(), any(), anyInt(), anyInt())).thenReturn(Optional.empty());
@@ -61,16 +66,18 @@ class TransactionServiceTest {
         assertThat(response).isNotNull();
         assertThat(response.getType()).isEqualTo(TransactionType.EXPENSE);
         assertThat(response.getAmount()).isEqualByComparingTo("25000");
-        assertThat(response.getCategory()).isEqualTo("Alimentación");
+        assertThat(response.getCategoryName()).isEqualTo("Alimentación");
     }
 
     @Test
     void create_shouldStoreNote_whenOptionalNoteIsProvided() {
+        var category = Category.builder().id(1L).name("Transporte").global(true).build();
         var request = buildExpenseRequest("Taxi", new BigDecimal("15000"),
-                "Transporte", "Viaje al aeropuerto");
+                1L, "Viaje al aeropuerto");
 
-        var saved = buildTransaction(2L, request);
+        var saved = buildTransaction(2L, request, category);
         when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
+        when(categoryRepository.findById(1L)).thenReturn(Optional.of(category));
         when(transactionRepository.save(any())).thenReturn(saved);
         when(budgetRepository.findByUserIdAndCategoryAndMonthAndYear(
                 any(), any(), anyInt(), anyInt())).thenReturn(Optional.empty());
@@ -136,24 +143,24 @@ class TransactionServiceTest {
     // ─── helpers ─────────────────────────────────────────────────────────────
 
     private TransactionRequest buildExpenseRequest(String desc, BigDecimal amount,
-                                                    String category, String notes) {
+                                                    Long categoryId, String notes) {
         var req = new TransactionRequest();
         req.setDescription(desc);
         req.setAmount(amount);
         req.setType(TransactionType.EXPENSE);
-        req.setCategory(category);
+        req.setCategoryId(categoryId);
         req.setTransactionDate(LocalDateTime.now());  // ← LocalDateTime
         req.setNotes(notes);
         return req;
     }
 
-    private Transaction buildTransaction(Long id, TransactionRequest req) {
+    private Transaction buildTransaction(Long id, TransactionRequest req, Category category) {
         return Transaction.builder()
                 .id(id)
                 .description(req.getDescription())
                 .amount(req.getAmount())
                 .type(req.getType())
-                .category(req.getCategory())
+                .category(category)
                 .transactionDate(req.getTransactionDate())
                 .notes(req.getNotes())
                 .user(testUser)

@@ -9,7 +9,7 @@ import java.math.BigDecimal;
 public class BudgetRequest {
 
     @NotBlank(message = "La categoría es requerida")
-    private String category;
+    private Long categoryId;
 
     @NotNull(message = "El monto límite es requerido")
     @DecimalMin(value = "0.0", inclusive = false, message = "El monto debe ser mayor a cero")

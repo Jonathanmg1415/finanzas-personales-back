@@ -23,7 +23,7 @@ public class TransactionRequest {
     private TransactionType type;
 
     @NotBlank(message = "Seleccionar una categoría es obligatorio")
-    private String category;
+    private Long categoryId;
 
     @NotNull(message = "La fecha es requerida")
     private LocalDateTime transactionDate;           // ← cambiado de LocalDate a LocalDateTime (BD: timestamp)

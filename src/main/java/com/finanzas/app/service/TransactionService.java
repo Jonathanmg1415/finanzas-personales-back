@@ -1,5 +1,6 @@
 package com.finanzas.app.service;
 
+import com.finanzas.app.domain.enums.TransactionType;
 import com.finanzas.app.presentation.dto.request.TransactionRequest;
 import com.finanzas.app.presentation.dto.response.TransactionResponse;
 import com.finanzas.app.presentation.dto.response.BalanceResponse;
@@ -13,4 +14,5 @@ public interface TransactionService {
     TransactionResponse update(Long id, Long userId, TransactionRequest request);
     void delete(Long id, Long userId);
     BalanceResponse getMonthlyBalance(Long userId, int month, int year);
+    List<TransactionResponse> filterByTypeAndCategory(Long userId, Long CategoryId, TransactionType type);
 }

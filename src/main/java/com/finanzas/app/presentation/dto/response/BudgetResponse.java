@@ -11,7 +11,7 @@ import java.math.BigDecimal;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class BudgetResponse {
     private Long id;
-    private String category;
+    private String categoryName;
     private BigDecimal limitAmount;
     private BigDecimal spent;
     private int month;

@@ -14,8 +14,9 @@ public class Budget {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
-    private String category;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "category_id", nullable = false)     // ← nueva clave foranea añadida a la db
+    private Category category;
 
     @Column(name = "limitamount", nullable = false, precision = 15, scale = 2)
     private BigDecimal limitAmount;                  // ← BD: "limitamount" sin guión bajo

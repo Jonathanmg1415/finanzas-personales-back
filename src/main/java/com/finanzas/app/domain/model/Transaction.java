@@ -27,8 +27,9 @@ public class Transaction {
     @Column(nullable = false)
     private TransactionType type;                    // ← BD: tipo USER-DEFINED (transaction_type enum)
 
-    @Column(nullable = false)
-    private String category;                         // ← campo nuevo agregado a la BD
+    @ManyToOne(fetch= FetchType.LAZY)
+    @JoinColumn(name = "category_id", nullable=false)
+    private Category category;                        // ← nueva clave foranea añadida a la db
 
     @Column(name = "transactiondate")                // ← BD: "transactiondate" sin guión bajo
     private LocalDateTime transactionDate;           // ← BD: timestamp, cambiado de LocalDate a LocalDateTime

@@ -5,11 +5,13 @@ import com.finanzas.app.presentation.dto.request.TransactionRequest;
 import com.finanzas.app.presentation.dto.response.BalanceResponse;
 import com.finanzas.app.presentation.dto.response.TransactionResponse;
 import com.finanzas.app.service.TransactionService;
+
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -17,6 +19,8 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+
+import com.finanzas.app.domain.enums.TransactionType;
 
 @RestController
 @RequestMapping("/api/v1/transactions")
@@ -78,6 +82,26 @@ public class TransactionController {
             @RequestParam int year) {
         return ResponseEntity.ok(
                 transactionService.getMonthlyBalance(resolveUserId(userDetails), month, year));
+    }
+
+    @GetMapping("/category/expense")
+    @Operation(summary = "Obtiene las transacciónes de tipo gasto que están asociadas a una categoría especifica")
+    public ResponseEntity<List<TransactionResponse>> findCategoryExpenses(
+        @AuthenticationPrincipal UserDetails userDetails,
+        @RequestParam Long categoryId){
+            return ResponseEntity.ok(
+                transactionService.filterByTypeAndCategory(resolveUserId(userDetails), categoryId, TransactionType.EXPENSE)
+            );
+    }
+
+    @GetMapping("/category/income")
+    @Operation(summary = "Obtiene las transacciónes de tipo ingreso que están asociadas a una categoría especifica")
+    public ResponseEntity<List<TransactionResponse>> findCategoryIncome(
+        @AuthenticationPrincipal UserDetails userDetails,
+        @RequestParam Long categoryId){
+            return ResponseEntity.ok(
+                transactionService.filterByTypeAndCategory(resolveUserId(userDetails), categoryId, TransactionType.INCOME)
+            );
     }
 
     // Obtiene el userId desde el SecurityContext — sin tocar JwtUtil ni infrastructure

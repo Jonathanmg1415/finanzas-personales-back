@@ -13,7 +13,7 @@ public class TransactionResponse {
     private String description;
     private BigDecimal amount;
     private TransactionType type;
-    private String category;
+    private String categoryName;
     private LocalDateTime transactionDate;           // ← cambiado de LocalDate a LocalDateTime
     private String notes;
     private LocalDateTime createdAt;

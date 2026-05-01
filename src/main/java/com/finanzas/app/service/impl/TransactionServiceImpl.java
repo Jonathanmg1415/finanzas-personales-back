@@ -1,10 +1,12 @@
 package com.finanzas.app.service.impl;
 
 import com.finanzas.app.domain.enums.TransactionType;
+import com.finanzas.app.domain.model.Category;
 import com.finanzas.app.domain.model.Transaction;
 import com.finanzas.app.domain.repository.BudgetRepository;
 import com.finanzas.app.domain.repository.TransactionRepository;
 import com.finanzas.app.domain.repository.UserRepository;
+import com.finanzas.app.domain.repository.CategoryRepository;
 import com.finanzas.app.presentation.dto.request.TransactionRequest;
 import com.finanzas.app.presentation.dto.response.BalanceResponse;
 import com.finanzas.app.presentation.dto.response.TransactionResponse;
@@ -25,6 +27,7 @@ public class TransactionServiceImpl implements TransactionService {
     private final TransactionRepository transactionRepository;
     private final UserRepository userRepository;
     private final BudgetRepository budgetRepository;
+    private final CategoryRepository categoryRepository;
 
     @Override
     @Transactional
@@ -32,11 +35,15 @@ public class TransactionServiceImpl implements TransactionService {
         var user = userRepository.findById(userId)
                 .orElseThrow(() -> new EntityNotFoundException("Usuario no encontrado"));
 
+        var category = categoryRepository.findById(request.getCategoryId())
+        .orElseThrow(() ->
+                new EntityNotFoundException("Categoría no encontrada"));
+        
         var transaction = Transaction.builder()
                 .description(request.getDescription())
                 .amount(request.getAmount())
                 .type(request.getType())
-                .category(request.getCategory())
+                .category(category)
                 .transactionDate(request.getTransactionDate())
                 .notes(request.getNotes())
                 .user(user)
@@ -46,7 +53,7 @@ public class TransactionServiceImpl implements TransactionService {
 
         // Si es un gasto, descuenta del presupuesto de esa categoría y mes
         if (request.getType() == TransactionType.EXPENSE) {
-            descontarDePresupuesto(userId, request.getCategory(),
+            descontarDePresupuesto(userId, category.getName(),
                     request.getTransactionDate(), request.getAmount());
         }
 
@@ -73,17 +80,20 @@ public class TransactionServiceImpl implements TransactionService {
     @Transactional
     public TransactionResponse update(Long id, Long userId, TransactionRequest request) {
         var transaction = getTransactionOfUser(id, userId);
+        Category category = categoryRepository.findById(request.getCategoryId())
+        .orElseThrow(() ->
+                new EntityNotFoundException("Categoría no encontrada"));
 
         // Guarda valores viejos antes de modificar
         BigDecimal montoViejo          = transaction.getAmount();
-        String categoriaVieja          = transaction.getCategory();
+        String categoriaVieja          = transaction.getCategory().getName();
         LocalDateTime fechaVieja       = transaction.getTransactionDate();
         TransactionType tipoViejo      = transaction.getType();
 
         transaction.setDescription(request.getDescription());
         transaction.setAmount(request.getAmount());
         transaction.setType(request.getType());
-        transaction.setCategory(request.getCategory());
+        transaction.setCategory(category);
         transaction.setTransactionDate(request.getTransactionDate());
         transaction.setNotes(request.getNotes());
 
@@ -96,7 +106,7 @@ public class TransactionServiceImpl implements TransactionService {
 
         // Descuenta del presupuesto nuevo si ahora es un gasto
         if (request.getType() == TransactionType.EXPENSE) {
-            descontarDePresupuesto(userId, request.getCategory(),
+            descontarDePresupuesto(userId, category.getName(),
                     request.getTransactionDate(), request.getAmount());
         }
 
@@ -110,7 +120,7 @@ public class TransactionServiceImpl implements TransactionService {
 
         // Devuelve el monto al presupuesto antes de borrar
         if (transaction.getType() == TransactionType.EXPENSE) {
-            devolverAlPresupuesto(userId, transaction.getCategory(),
+            devolverAlPresupuesto(userId, transaction.getCategory().getName(),
                     transaction.getTransactionDate(), transaction.getAmount());
         }
 
@@ -145,6 +155,15 @@ public class TransactionServiceImpl implements TransactionService {
                 .build();
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<TransactionResponse> filterByTypeAndCategory(Long userId, Long CategoryId, TransactionType type) {
+
+        return transactionRepository.findByUserIdAndCategoryAndType(userId, CategoryId, type)
+                                    .stream()
+                                    .map(this::toResponse)
+                                    .toList();
+    }
     // ─── Helpers privados ────────────────────────────────────────────────────
 
     private void descontarDePresupuesto(Long userId, String category,
@@ -183,16 +202,20 @@ public class TransactionServiceImpl implements TransactionService {
         return transaction;
     }
 
+    
+
     private TransactionResponse toResponse(Transaction t) {
         return TransactionResponse.builder()
                 .id(t.getId())
                 .description(t.getDescription())
                 .amount(t.getAmount())
                 .type(t.getType())
-                .category(t.getCategory())
+                .categoryName(t.getCategory().getName())
                 .transactionDate(t.getTransactionDate())
                 .notes(t.getNotes())
                 .createdAt(t.getCreatedAt())
                 .build();
     }
+
+    
 }
