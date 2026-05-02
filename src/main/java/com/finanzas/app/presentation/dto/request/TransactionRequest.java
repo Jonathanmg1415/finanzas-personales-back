@@ -22,7 +22,7 @@ public class TransactionRequest {
     @NotNull(message = "El tipo es requerido")
     private TransactionType type;
 
-    @NotBlank(message = "Seleccionar una categoría es obligatorio")
+    @NotNull(message = "Seleccionar una categoría es obligatorio")
     private Long categoryId;
 
     @NotNull(message = "La fecha es requerida")

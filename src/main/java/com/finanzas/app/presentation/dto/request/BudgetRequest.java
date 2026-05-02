@@ -8,7 +8,7 @@ import java.math.BigDecimal;
 @Data
 public class BudgetRequest {
 
-    @NotBlank(message = "La categoría es requerida")
+    @NotNull(message = "La categoría es requerida")
     private Long categoryId;
 
     @NotNull(message = "El monto límite es requerido")
