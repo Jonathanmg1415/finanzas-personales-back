@@ -88,20 +88,34 @@ public class AuthServiceImpl {
     // ─── Métodos privados para manejo de bloqueo ──────────────────────────────
 
     private void checkIfBlocked(String email) {
-        loginAttemptRepository.findByEmail(email).ifPresent(attempt -> {
-            if (attempt.getLockedUntil() != null &&
-                    attempt.getLockedUntil().isAfter(LocalDateTime.now())) {
-                throw new AccountLockedException(
-                        "Bloqueo temporal de 30 minutos por credenciales incorrectas");
-            }
-        });
+        userRepository.findByEmail(email)
+                        .ifPresent(user -> {
+                            loginAttemptRepository.findByUser_Id(user.getId())
+                                                .ifPresent(attempt ->{
+                                                    if(attempt.getLockedUntil() != null &&
+                                                    attempt.getLockedUntil().isAfter(LocalDateTime.now())){
+                                                        throw new AccountLockedException(
+                                                       "Bloqueo temporal de 30 minutos por credenciales incorrectas");
+                                                    }
+                                                });
+                        });
+            
+        ;
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void registerFailedAttempt(String email) {
-        var attempt = loginAttemptRepository.findByEmail(email)
+
+        var user = userRepository.findByEmail(email)
+                    .orElse(null);
+
+        if (user == null){
+            return;
+        }
+
+        var attempt = loginAttemptRepository.findByUser_Id(user.getId())
                 .orElseGet(() -> LoginAttempt.builder()
-                        .email(email)
+                        .user(user)
                         .attempts(0)
                         .build());
 
@@ -118,10 +132,17 @@ public class AuthServiceImpl {
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void resetFailedAttempts(String email) {
-        loginAttemptRepository.findByEmail(email).ifPresent(attempt -> {
-            attempt.setAttempts(0);
-            attempt.setLockedUntil(null);
-            loginAttemptRepository.save(attempt);
+
+        userRepository.findByEmail(email)
+        .ifPresent(user -> {
+
+            loginAttemptRepository.findByUser_Id(user.getId())
+            .ifPresent(attempt -> {
+                attempt.setAttempts(0);
+                attempt.setLockedUntil(null);
+                loginAttemptRepository.save(attempt);
+            });
+
         });
     }
 }
