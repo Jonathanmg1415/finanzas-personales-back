@@ -14,8 +14,9 @@ public class LoginAttempt {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true)
-    private String email;
+    @ManyToOne(fetch= FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable=false, unique = true)
+    private User user;
 
     @Column(name = "attempts", nullable = false)
     private int attempts;                            // ← BD: "attempts" (antes era failedAttempts)
