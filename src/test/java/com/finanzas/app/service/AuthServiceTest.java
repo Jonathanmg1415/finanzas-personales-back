@@ -25,6 +25,7 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -90,8 +91,8 @@ class AuthServiceTest {
 
     @Test
     void login_shouldReturnToken_whenCredentialsAreCorrect() {
-        when(loginAttemptRepository.findByEmail(any())).thenReturn(Optional.empty());
         when(userRepository.findByEmail(any())).thenReturn(Optional.of(testUser));
+        when(loginAttemptRepository.findByUser_Id(any())).thenReturn(Optional.empty());
         when(jwtUtil.generateToken(any(), any())).thenReturn("token123");
 
         var response = authService.login(loginRequest);
@@ -102,7 +103,8 @@ class AuthServiceTest {
 
     @Test
     void login_shouldThrowBadCredentials_whenPasswordIsWrong() {
-        when(loginAttemptRepository.findByEmail(any())).thenReturn(Optional.empty());
+        when(userRepository.findByEmail(any())).thenReturn(Optional.of(testUser));
+        when(loginAttemptRepository.findByUser_Id(any())).thenReturn(Optional.empty());
         doThrow(new BadCredentialsException("bad"))
                 .when(authenticationManager).authenticate(any());
 
@@ -114,12 +116,15 @@ class AuthServiceTest {
     @Test
     void login_shouldThrowAccountLocked_whenExceeds3FailedAttempts() {
         var blockedAttempt = LoginAttempt.builder()
-                .email("jonathan@test.com")
+                .user(testUser)
                 .attempts(3)                                        // ← antes: failedAttempts
                 .lockedUntil(LocalDateTime.now().plusMinutes(25))   // ← antes: blockedUntil
                 .build();
 
-        when(loginAttemptRepository.findByEmail("jonathan@test.com"))
+        when(userRepository.findByEmail("jonathan@test.com"))
+                .thenReturn(Optional.of(testUser));
+
+        when(loginAttemptRepository.findByUser_Id(1L))
                 .thenReturn(Optional.of(blockedAttempt));
 
         assertThatThrownBy(() -> authService.login(loginRequest))
@@ -130,11 +135,11 @@ class AuthServiceTest {
     @Test
     void login_shouldBlockAccount_afterThirdFailedAttempt() {
         var attempt = LoginAttempt.builder()
-                .email("jonathan@test.com")
+                .user(testUser)
                 .attempts(2)                                        // ← antes: failedAttempts
                 .build();
-
-        when(loginAttemptRepository.findByEmail(any())).thenReturn(Optional.of(attempt));
+        when(userRepository.findByEmail(any())).thenReturn(Optional.of(testUser));
+        when(loginAttemptRepository.findByUser_Id(1L)).thenReturn(Optional.of(attempt));
         doThrow(new BadCredentialsException("bad"))
                 .when(authenticationManager).authenticate(any());
 
