@@ -1,6 +1,8 @@
 package com.finanzas.app.infrastructure.config;
 
 import com.finanzas.app.infrastructure.security.JwtFilter;
+import com.finanzas.app.infrastructure.security.ResourceOwnershipFilter;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -26,6 +28,7 @@ import org.springframework.security.web.header.writers.XXssProtectionHeaderWrite
 public class SecurityConfig {
 
     private final JwtFilter jwtFilter;
+    private final ResourceOwnershipFilter resourceOwnershipFilter;
     private final UserDetailsService userDetailsService;
 
     private static final String[] PUBLIC_ENDPOINTS = {
@@ -66,6 +69,7 @@ public class SecurityConfig {
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authenticationProvider(authenticationProvider())
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(resourceOwnershipFilter, jwtFilter.getClass())
                 .build();
     }
 
