@@ -18,7 +18,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;              // ← cambiado de LocalDate a LocalDateTime
+import java.time.LocalDateTime;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.*;
@@ -30,9 +30,10 @@ import static org.mockito.Mockito.*;
 class TransactionServiceTest {
 
     @Mock private TransactionRepository transactionRepository;
-    @Mock private UserRepository userRepository;
-    @Mock private BudgetRepository budgetRepository;
-    @Mock private CategoryRepository categoryRepository;
+    @Mock private UserRepository        userRepository;
+    @Mock private BudgetRepository      budgetRepository;
+    @Mock private CategoryRepository    categoryRepository;
+    @Mock private AuditService          auditService;   // ← agregado
     @InjectMocks private TransactionServiceImpl transactionService;
 
     private User testUser;
@@ -51,8 +52,7 @@ class TransactionServiceTest {
     @Test
     void create_shouldRegisterExpense_whenDataIsValid() {
         var category = Category.builder().id(1L).name("Alimentación").global(true).build();
-        var request = buildExpenseRequest("Almuerzo", new BigDecimal("25000"),
-                1L, null);
+        var request = buildExpenseRequest("Almuerzo", new BigDecimal("25000"), 1L, null);
 
         var saved = buildTransaction(1L, request, category);
         when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
@@ -60,6 +60,7 @@ class TransactionServiceTest {
         when(transactionRepository.save(any())).thenReturn(saved);
         when(budgetRepository.findByUserIdAndCategoryIdAndMonthAndYear(
                 any(), any(), anyInt(), anyInt())).thenReturn(Optional.empty());
+        doNothing().when(auditService).log(any(), any(), any(), any(), any(), any()); // ← agregado
 
         var response = transactionService.create(1L, request);
 
@@ -72,8 +73,7 @@ class TransactionServiceTest {
     @Test
     void create_shouldStoreNote_whenOptionalNoteIsProvided() {
         var category = Category.builder().id(1L).name("Transporte").global(true).build();
-        var request = buildExpenseRequest("Taxi", new BigDecimal("15000"),
-                1L, "Viaje al aeropuerto");
+        var request = buildExpenseRequest("Taxi", new BigDecimal("15000"), 1L, "Viaje al aeropuerto");
 
         var saved = buildTransaction(2L, request, category);
         when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
@@ -81,6 +81,7 @@ class TransactionServiceTest {
         when(transactionRepository.save(any())).thenReturn(saved);
         when(budgetRepository.findByUserIdAndCategoryIdAndMonthAndYear(
                 any(), any(), anyInt(), anyInt())).thenReturn(Optional.empty());
+        doNothing().when(auditService).log(any(), any(), any(), any(), any(), any()); // ← agregado
 
         var response = transactionService.create(1L, request);
 
@@ -89,8 +90,8 @@ class TransactionServiceTest {
 
     @Test
     void getMonthlyBalance_shouldReduceBalance_whenExpenseIsRegistered() {
-        LocalDateTime start = LocalDateTime.of(2026, 3, 1, 0, 0);  // ← LocalDateTime
-        LocalDateTime end = start.plusMonths(1);
+        LocalDateTime start = LocalDateTime.of(2026, 3, 1, 0, 0);
+        LocalDateTime end   = start.plusMonths(1);
 
         when(transactionRepository.sumByUserIdAndTypeAndPeriod(
                 eq(1L), eq(TransactionType.INCOME), eq(start), eq(end)))
@@ -107,8 +108,8 @@ class TransactionServiceTest {
 
     @Test
     void getMonthlyBalance_shouldReturnSuperavit_whenIncomeExceedsExpense() {
-        LocalDateTime start = LocalDateTime.of(2026, 3, 1, 0, 0);  // ← LocalDateTime
-        LocalDateTime end = start.plusMonths(1);
+        LocalDateTime start = LocalDateTime.of(2026, 3, 1, 0, 0);
+        LocalDateTime end   = start.plusMonths(1);
 
         when(transactionRepository.sumByUserIdAndTypeAndPeriod(
                 eq(1L), eq(TransactionType.INCOME), eq(start), eq(end)))
@@ -124,8 +125,8 @@ class TransactionServiceTest {
 
     @Test
     void getMonthlyBalance_shouldReturnDeficit_whenExpenseExceedsIncome() {
-        LocalDateTime start = LocalDateTime.of(2026, 3, 1, 0, 0);  // ← LocalDateTime
-        LocalDateTime end = start.plusMonths(1);
+        LocalDateTime start = LocalDateTime.of(2026, 3, 1, 0, 0);
+        LocalDateTime end   = start.plusMonths(1);
 
         when(transactionRepository.sumByUserIdAndTypeAndPeriod(
                 eq(1L), eq(TransactionType.INCOME), eq(start), eq(end)))
@@ -149,7 +150,7 @@ class TransactionServiceTest {
         req.setAmount(amount);
         req.setType(TransactionType.EXPENSE);
         req.setCategoryId(categoryId);
-        req.setTransactionDate(LocalDateTime.now());  // ← LocalDateTime
+        req.setTransactionDate(LocalDateTime.now());
         req.setNotes(notes);
         return req;
     }
