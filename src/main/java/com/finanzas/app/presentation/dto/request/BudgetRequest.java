@@ -23,4 +23,9 @@ public class BudgetRequest {
     @NotNull(message = "El año es requerido")
     @Min(value = 2000, message = "El año no es válido")
     private Integer year;
+
+    // HU-24: Umbral de alerta opcional — entre 0.01 y 1.0 — por defecto 0.80 (80%)
+    @DecimalMin(value = "0.01", message = "El umbral debe ser mayor a 0")
+    @DecimalMax(value = "1.0", message = "El umbral no puede superar 1.0 (100%)")
+    private BigDecimal alertThreshold;
 }

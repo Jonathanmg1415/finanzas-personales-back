@@ -10,6 +10,7 @@ import com.finanzas.app.domain.repository.CategoryRepository;
 import com.finanzas.app.presentation.dto.request.TransactionRequest;
 import com.finanzas.app.presentation.dto.response.BalanceResponse;
 import com.finanzas.app.presentation.dto.response.TransactionResponse;
+import com.finanzas.app.service.AuditService;
 import com.finanzas.app.service.TransactionService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -25,9 +26,10 @@ import java.util.List;
 public class TransactionServiceImpl implements TransactionService {
 
     private final TransactionRepository transactionRepository;
-    private final UserRepository userRepository;
-    private final BudgetRepository budgetRepository;
-    private final CategoryRepository categoryRepository;
+    private final UserRepository        userRepository;
+    private final BudgetRepository      budgetRepository;
+    private final CategoryRepository    categoryRepository;
+    private final AuditService          auditService; // HU-19
 
     @Override
     @Transactional
@@ -36,9 +38,8 @@ public class TransactionServiceImpl implements TransactionService {
                 .orElseThrow(() -> new EntityNotFoundException("Usuario no encontrado"));
 
         var category = categoryRepository.findById(request.getCategoryId())
-        .orElseThrow(() ->
-                new EntityNotFoundException("Categoría no encontrada"));
-        
+                .orElseThrow(() -> new EntityNotFoundException("Categoría no encontrada"));
+
         var transaction = Transaction.builder()
                 .description(request.getDescription())
                 .amount(request.getAmount())
@@ -51,11 +52,16 @@ public class TransactionServiceImpl implements TransactionService {
 
         transactionRepository.save(transaction);
 
-        // Si es un gasto, descuenta del presupuesto de esa categoría y mes
         if (request.getType() == TransactionType.EXPENSE) {
             descontarDePresupuesto(userId, category.getId(),
                     request.getTransactionDate(), request.getAmount());
         }
+
+        // HU-19: Registrar auditoría
+        auditService.log(userId, "CREATE", "TRANSACTION", transaction.getId(),
+                String.format("Creó transacción %s: %s por %.0f",
+                        request.getType(), request.getDescription(), request.getAmount().doubleValue()),
+                null);
 
         return toResponse(transaction);
     }
@@ -81,14 +87,12 @@ public class TransactionServiceImpl implements TransactionService {
     public TransactionResponse update(Long id, Long userId, TransactionRequest request) {
         var transaction = getTransactionOfUser(id, userId);
         Category category = categoryRepository.findById(request.getCategoryId())
-        .orElseThrow(() ->
-                new EntityNotFoundException("Categoría no encontrada"));
+                .orElseThrow(() -> new EntityNotFoundException("Categoría no encontrada"));
 
-        // Guarda valores viejos antes de modificar
-        BigDecimal montoViejo          = transaction.getAmount();
-        Category categoriaVieja          = transaction.getCategory();
-        LocalDateTime fechaVieja       = transaction.getTransactionDate();
-        TransactionType tipoViejo      = transaction.getType();
+        BigDecimal montoViejo        = transaction.getAmount();
+        Category categoriaVieja      = transaction.getCategory();
+        LocalDateTime fechaVieja     = transaction.getTransactionDate();
+        TransactionType tipoViejo    = transaction.getType();
 
         transaction.setDescription(request.getDescription());
         transaction.setAmount(request.getAmount());
@@ -99,16 +103,19 @@ public class TransactionServiceImpl implements TransactionService {
 
         transactionRepository.save(transaction);
 
-        // Devuelve al presupuesto viejo si era un gasto
         if (tipoViejo == TransactionType.EXPENSE) {
             devolverAlPresupuesto(userId, categoriaVieja.getId(), fechaVieja, montoViejo);
         }
-
-        // Descuenta del presupuesto nuevo si ahora es un gasto
         if (request.getType() == TransactionType.EXPENSE) {
             descontarDePresupuesto(userId, category.getId(),
                     request.getTransactionDate(), request.getAmount());
         }
+
+        // HU-19: Registrar auditoría
+        auditService.log(userId, "UPDATE", "TRANSACTION", transaction.getId(),
+                String.format("Actualizó transacción %d: %s por %.0f",
+                        transaction.getId(), request.getDescription(), request.getAmount().doubleValue()),
+                null);
 
         return toResponse(transaction);
     }
@@ -118,11 +125,16 @@ public class TransactionServiceImpl implements TransactionService {
     public void delete(Long id, Long userId) {
         var transaction = getTransactionOfUser(id, userId);
 
-        // Devuelve el monto al presupuesto antes de borrar
         if (transaction.getType() == TransactionType.EXPENSE) {
             devolverAlPresupuesto(userId, transaction.getCategory().getId(),
                     transaction.getTransactionDate(), transaction.getAmount());
         }
+
+        // HU-19: Registrar auditoría antes de borrar
+        auditService.log(userId, "DELETE", "TRANSACTION", transaction.getId(),
+                String.format("Eliminó transacción %d: %s por %.0f",
+                        transaction.getId(), transaction.getDescription(), transaction.getAmount().doubleValue()),
+                null);
 
         transactionRepository.delete(transaction);
     }
@@ -130,7 +142,7 @@ public class TransactionServiceImpl implements TransactionService {
     @Override
     @Transactional(readOnly = true)
     public BalanceResponse getMonthlyBalance(Long userId, int month, int year) {
-        LocalDateTime startDate = LocalDateTime.of(year, month, 1, 0, 0);   // ← LocalDateTime
+        LocalDateTime startDate = LocalDateTime.of(year, month, 1, 0, 0);
         LocalDateTime endDate   = startDate.plusMonths(1);
 
         BigDecimal totalIncome = transactionRepository
@@ -157,21 +169,19 @@ public class TransactionServiceImpl implements TransactionService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<TransactionResponse> filterByTypeAndCategory(Long userId, Long CategoryId, TransactionType type) {
-
-        return transactionRepository.findByUserIdAndCategoryIdAndType(userId, CategoryId, type)
-                                    .stream()
-                                    .map(this::toResponse)
-                                    .toList();
+    public List<TransactionResponse> filterByTypeAndCategory(Long userId, Long categoryId, TransactionType type) {
+        return transactionRepository.findByUserIdAndCategoryIdAndType(userId, categoryId, type)
+                .stream()
+                .map(this::toResponse)
+                .toList();
     }
-    // ─── Helpers privados ────────────────────────────────────────────────────
+
+    // ─── Helpers privados ─────────────────────────────────────────────────────
 
     private void descontarDePresupuesto(Long userId, Long categoryId,
                                         LocalDateTime fecha, BigDecimal monto) {
         budgetRepository.findByUserIdAndCategoryIdAndMonthAndYear(
-                userId, categoryId,
-                fecha.getMonthValue(),                          // ← extrae mes del LocalDateTime
-                fecha.getYear()                                 // ← extrae año del LocalDateTime
+                userId, categoryId, fecha.getMonthValue(), fecha.getYear()
         ).ifPresent(budget -> {
             budget.setSpent(budget.getSpent().add(monto));
             budgetRepository.save(budget);
@@ -181,12 +191,9 @@ public class TransactionServiceImpl implements TransactionService {
     private void devolverAlPresupuesto(Long userId, Long categoryId,
                                        LocalDateTime fecha, BigDecimal monto) {
         budgetRepository.findByUserIdAndCategoryIdAndMonthAndYear(
-                userId, categoryId,
-                fecha.getMonthValue(),
-                fecha.getYear()
+                userId, categoryId, fecha.getMonthValue(), fecha.getYear()
         ).ifPresent(budget -> {
             BigDecimal nuevoSpent = budget.getSpent().subtract(monto);
-            // Nunca deja el spent en negativo
             budget.setSpent(nuevoSpent.compareTo(BigDecimal.ZERO) < 0
                     ? BigDecimal.ZERO : nuevoSpent);
             budgetRepository.save(budget);
@@ -202,8 +209,6 @@ public class TransactionServiceImpl implements TransactionService {
         return transaction;
     }
 
-    
-
     private TransactionResponse toResponse(Transaction t) {
         return TransactionResponse.builder()
                 .id(t.getId())
@@ -216,6 +221,4 @@ public class TransactionServiceImpl implements TransactionService {
                 .createdAt(t.getCreatedAt())
                 .build();
     }
-
-    
 }

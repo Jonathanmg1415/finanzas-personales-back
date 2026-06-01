@@ -6,7 +6,7 @@ import lombok.*;
 import java.math.BigDecimal;
 
 @Entity
-@Table(name = "budget")                              // ← BD: "budget" sin s
+@Table(name = "budget")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class Budget {
 
@@ -15,11 +15,11 @@ public class Budget {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "category_id", nullable = false)     // ← nueva clave foranea añadida a la db
+    @JoinColumn(name = "category_id", nullable = false)
     private Category category;
 
     @Column(name = "limitamount", nullable = false, precision = 15, scale = 2)
-    private BigDecimal limitAmount;                  // ← BD: "limitamount" sin guión bajo
+    private BigDecimal limitAmount;
 
     @Column(nullable = false)
     private int month;
@@ -29,7 +29,12 @@ public class Budget {
 
     @Column(nullable = false, precision = 15, scale = 2)
     @Builder.Default
-    private BigDecimal spent = BigDecimal.ZERO;      // ← campo nuevo agregado a la BD
+    private BigDecimal spent = BigDecimal.ZERO;
+
+    // HU-24: Umbral de alerta personalizado (0.0 a 1.0) — por defecto 80%
+    @Column(name = "alert_threshold", nullable = false, precision = 5, scale = 2)
+    @Builder.Default
+    private BigDecimal alertThreshold = new BigDecimal("0.80");
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
